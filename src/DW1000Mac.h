@@ -55,6 +55,10 @@ public:
 	void setDestinationAddressShort(byte* shortDestinationAddress);
 	void setSourceAddress(byte* sourceAddress);
 	void setSourceAddressShort(byte* shortSourceAddress);
+
+	void getReceiverAddress(byte frame[], byte address[]);
+void getSenderAddress(byte frame[], byte address[]);
+
 	
 	
 	//for poll message we use just 2 bytes address
@@ -87,4 +91,3 @@ private:
 
 
 #endif
-

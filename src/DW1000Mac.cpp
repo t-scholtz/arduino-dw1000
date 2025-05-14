@@ -157,3 +157,15 @@ void DW1000Mac::reverseArray(byte to[], byte from[], int16_t size) {
 		*(to+i) = *(from+size-i-1);
 	}
 }
+
+void DW1000Mac::getReceiverAddress(byte frame[], byte address[]) {
+	byte reverseAddress[2];
+	memcpy(reverseAddress, frame + 5, 2); // destination address is at offset 5
+	reverseArray(address, reverseAddress, 2);
+}
+
+void DW1000Mac::getSenderAddress(byte frame[], byte address[]) {
+	byte reverseAddress[2];
+	memcpy(reverseAddress, frame + 7, 2); // source address is at offset 7
+	reverseArray(address, reverseAddress, 2);
+}

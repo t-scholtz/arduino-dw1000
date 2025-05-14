@@ -1,143 +1,161 @@
-/*
- * Copyright (c) 2015 by Thomas Trojer <thomas@trojer.net> and Leopold Sayous <leosayous@gmail.com>
- * Decawave DW1000 library for arduino.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file DW1000Device.cpp
- * Arduino global library (source file) working with the DW1000 library
- * for the Decawave DW1000 UWB transceiver IC.
- * 
- * @todo complete this class
- */
-
 #include "DW1000Device.h"
 #include "DW1000.h"
 
-
-//Constructor and destructor
 DW1000Device::DW1000Device() {
-	randomShortAddress();
+    randomShortAddress();
 }
 
-DW1000Device::DW1000Device(byte deviceAddress[], boolean shortOne) {
-	if(!shortOne) {
-		//we have a 8 bytes address
-		setAddress(deviceAddress);
-		randomShortAddress();
-	}
-	else {
-		//we have a short address (2 bytes)
-		setShortAddress(deviceAddress);
-	}
+DW1000Device::DW1000Device(byte deviceAddress[], boolean shortOne)
+{
+    noteActivity();
+    _expectedMsgId = 0;  // or 0, depending on your protocol
+    if (!shortOne) {
+        setAddress(deviceAddress);
+        randomShortAddress();
+    } else {
+        setShortAddress(deviceAddress);
+    }
 }
 
 DW1000Device::DW1000Device(byte deviceAddress[], byte shortAddress[]) {
-	//we have a 8 bytes address
-	setAddress(deviceAddress);
-	//we set the 2 bytes address
-	setShortAddress(shortAddress);
+    setAddress(deviceAddress);
+    setShortAddress(shortAddress);
+	noteActivity();
+	_expectedMsgId = 0;  // or 0, depending on your protocol
 }
 
-DW1000Device::~DW1000Device() {
+DW1000Device::~DW1000Device() {noteActivity();}
+
+void DW1000Device::setAddress(char deviceAddress[]) {
+    DW1000.convertToByte(deviceAddress, _ownAddress);
 }
-
-//setters:
-void DW1000Device::setReplyTime(uint16_t replyDelayTimeUs) { _replyDelayTimeUS = replyDelayTimeUs; }
-
-void DW1000Device::setAddress(char deviceAddress[]) { DW1000.convertToByte(deviceAddress, _ownAddress); }
 
 void DW1000Device::setAddress(byte* deviceAddress) {
-	memcpy(_ownAddress, deviceAddress, 8);
+    memcpy(_ownAddress, deviceAddress, 8);
 }
 
 void DW1000Device::setShortAddress(byte deviceAddress[]) {
-	memcpy(_shortAddress, deviceAddress, 2);
+    memcpy(_shortAddress, deviceAddress, 2);
 }
-
-
-void DW1000Device::setRange(float range) { _range = round(range*100); }
-
-void DW1000Device::setRXPower(float RXPower) { _RXPower = round(RXPower*100); }
-
-void DW1000Device::setFPPower(float FPPower) { _FPPower = round(FPPower*100); }
-
-void DW1000Device::setQuality(float quality) { _quality = round(quality*100); }
-
 
 byte* DW1000Device::getByteAddress() {
-	return _ownAddress;
+    return _ownAddress;
 }
-
-/*
-String DW1000Device::getAddress(){
-    char string[25];
-    sprintf(string, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
-            _ownAddress[0], _ownAddress[1], _ownAddress[2], _ownAddress[3], _ownAddress[4], _ownAddress[5], _ownAddress[6], _ownAddress[7]);
-    return String(string);
-}*/
 
 byte* DW1000Device::getByteShortAddress() {
-	return _shortAddress;
+    return _shortAddress;
 }
-
-/*
-String DW1000Device::getShortAddress(){
-    char string[6];
-    sprintf(string, "%02X:%02X",
-            _shortAddress[0], _shortAddress[1]);
-    return String(string);
-}
-*/
 
 uint16_t DW1000Device::getShortAddress() {
-	return _shortAddress[1]*256+_shortAddress[0];
+    return (_shortAddress[1] << 8) | _shortAddress[0];
+}
+
+bool DW1000Device::isAddressEqual(DW1000Device* device) {
+    return memcmp(getByteAddress(), device->getByteAddress(), 8) == 0;
+}
+
+bool DW1000Device::isShortAddressEqual(DW1000Device* device) {
+    return getShortAddress() == device->getShortAddress();
 }
 
 
-boolean DW1000Device::isAddressEqual(DW1000Device* device) {
-	return memcmp(this->getByteAddress(), device->getByteAddress(), 8) == 0;
+void DW1000Device::setRange(float range) {
+    _range = round(range * 100);
 }
 
-boolean DW1000Device::isShortAddressEqual(DW1000Device* device) {
-	return memcmp(this->getByteShortAddress(), device->getByteShortAddress(), 2) == 0;
+void DW1000Device::setRXPower(float RXPower) {
+    _RXPower = round(RXPower * 100);
 }
 
+void DW1000Device::setFPPower(float FPPower) {
+    _FPPower = round(FPPower * 100);
+}
 
-float DW1000Device::getRange() { return float(_range)/100.0f; }
+void DW1000Device::setQuality(float quality) {
+    _quality = round(quality * 100);
+}
 
-float DW1000Device::getRXPower() { return float(_RXPower)/100.0f; }
+float DW1000Device::getRange() {
+    return float(_range) / 100.0f;
+}
 
-float DW1000Device::getFPPower() { return float(_FPPower)/100.0f; }
+float DW1000Device::getRXPower() {
+    return float(_RXPower) / 100.0f;
+}
 
-float DW1000Device::getQuality() { return float(_quality)/100.0f; }
+float DW1000Device::getFPPower() {
+    return float(_FPPower) / 100.0f;
+}
 
+float DW1000Device::getQuality() {
+    return float(_quality) / 100.0f;
+}
+
+void DW1000Device::setReplyTime(uint16_t replyDelayTimeUs) {
+    _replyDelayTimeUS = replyDelayTimeUs;
+}
+
+uint16_t DW1000Device::getReplyTime() {
+    return _replyDelayTimeUS;
+}
+
+void DW1000Device::setReplyDelayTime(uint16_t time) {
+    _replyDelayTimeUS = time;
+}
+
+void DW1000Device::setIndex(int8_t index) {
+    _index = index;
+}
+
+int8_t DW1000Device::getIndex() {
+    return _index;
+}
 
 void DW1000Device::randomShortAddress() {
-	_shortAddress[0] = random(0, 256);
-	_shortAddress[1] = random(0, 256);
+    _shortAddress[0] = random(0, 256);
+    _shortAddress[1] = random(0, 256);
 }
 
 void DW1000Device::noteActivity() {
-	_activity = millis();
+    _activity = millis();
+    _active = true;  // Wake up on any activity
 }
 
-
-boolean DW1000Device::isInactive() {
-	//One second of inactivity
-	if(millis()-_activity > INACTIVITY_TIME) {
-		_activity = millis();
-		return true;
-	}
-	return false;
+bool DW1000Device::isInactive() {
+    return (millis() - _activity > INACTIVITY_TIME);
 }
+
+void DW1000Device::setExpectedMsgId(uint8_t msgId) {
+    _expectedMsgId = msgId;
+}
+
+uint8_t DW1000Device::getExpectedMsgId() const {
+    return _expectedMsgId;
+}
+
+void DW1000Device::setTagState(TagState state) {
+    _tagState = state;
+    _lastStateChange = millis();
+}
+
+TagState DW1000Device::getTagState() const {
+    return _tagState;
+}
+
+void DW1000Device::setActive() {
+    _active = true;
+    noteActivity(); // also refresh timestamp
+}
+
+void DW1000Device::setInactive() {
+    _active = false;
+}
+
+bool DW1000Device::isActive() const {
+    return _active;
+}
+
+unsigned long DW1000Device::getLastActivity() const {
+    return _activity;
+}
+
